@@ -1,0 +1,384 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Creates a VPC"
+Parameters:
+  EnvNameParam:
+    Description: Example 'dev' or 'test' switch, determines which settings are passed to userdata.
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  VPCName:
+    Description: The name of the VPC being created.
+    Type: String
+    Default: "Assignment3 VPC"
+  VPCCIDR:
+    Description: The VPC CIDR
+    Type: String
+  PublicSubnet00:
+    Description: The PublicSubnet0 CIDR
+    Type: String
+  PublicSubnet11:
+    Description: The PublicSubnet1 CIDR
+    Type: String
+  PrivateSubnet00:
+    Description: The PrivateSubnet0 CIDR
+    Type: String
+  PrivateSubnet11:
+    Description: The PrivateSubnet1 CIDR
+    Type: String
+  
+Mappings:
+  AZRegions:
+    ap-northeast-1:
+      AZs: ["a", "b"]
+    ap-northeast-2:
+      AZs: ["a", "b"]
+    ap-south-1:
+      AZs: ["a", "b"]
+    ap-southeast-1:
+      AZs: ["a", "b"]
+    ap-southeast-2:
+      AZs: ["a", "b"]
+    ca-central-1:
+      AZs: ["a", "b"]
+    eu-central-1:
+      AZs: ["a", "b"]
+    eu-west-1:
+      AZs: ["a", "b"]
+    eu-west-2:
+      AZs: ["a", "b"]
+    sa-east-1:
+      AZs: ["a", "b"]
+    us-east-1:
+      AZs: ["a", "b"]
+    us-east-2:
+      AZs: ["a", "b"]
+    us-west-1:
+      AZs: ["a", "c"]
+    us-west-2:
+      AZs: ["a", "b"]
+
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      CidrBlock: !Ref VPCCIDR
+      Tags:
+        -
+          Key: "Application"
+          Value:
+            Ref: "AWS::StackName"
+        -
+          Key: "Network"
+          Value: "Public"
+        -
+          Key: "Name"
+          Value: !Ref 'VPCName'
+        -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-public-'
+              - !Sub "${EnvNameParam}"
+  
+  PublicSubnet0:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: !Ref PublicSubnet00
+      VpcId: !Ref VPC
+      AvailabilityZone:
+        Fn::Sub:
+        - "${AWS::Region}${AZ}"
+        - AZ: !Select [ 0, !FindInMap ["AZRegions",!Ref "AWS::Region","AZs"] ]
+      MapPublicIpOnLaunch: "true"
+      Tags:
+      -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-public-'
+              - !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+              - !Sub "${EnvNameParam}"
+
+  PublicSubnet1:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        CidrBlock: !Ref PublicSubnet11
+        VpcId: !Ref VPC
+        AvailabilityZone:
+          Fn::Sub:
+          - "${AWS::Region}${AZ}"
+          - AZ: !Select [ 1, !FindInMap ["AZRegions",!Ref "AWS::Region","AZs"] ]
+        MapPublicIpOnLaunch: "true"
+        Tags:
+         -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-public-'
+              - !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+              - !Sub "${EnvNameParam}"
+  
+  PrivateSubnet0:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        CidrBlock: !Ref PrivateSubnet00
+        VpcId: !Ref VPC
+        AvailabilityZone: 
+          Fn::Sub:
+            - "${AWS::Region}${AZ}"
+            - AZ: !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs"] ] 
+        MapPublicIpOnLaunch: "false"
+        Tags:
+          - 
+            Key: "Name"
+            Value: !Join 
+              - ''
+              - - !Ref "VPCName"
+                - '-private-'
+                - !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+                - !Sub "${EnvNameParam}"
+
+  PrivateSubnet1:
+      Type: "AWS::EC2::Subnet"
+      Properties:
+        CidrBlock: !Ref PrivateSubnet11
+        VpcId: !Ref VPC
+        AvailabilityZone: 
+          Fn::Sub:
+            - "${AWS::Region}${AZ}"
+            - AZ: !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs"] ] 
+        MapPublicIpOnLaunch: "false"
+        Tags:
+          - 
+            Key: "Name"
+            Value: !Join 
+              - ''
+              - - !Ref "VPCName"
+                - '-private-'
+                - !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+                - !Sub "${EnvNameParam}"
+  
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - 
+          Key: "Name"
+          Value: !Sub ${AWS::Region}-${EnvNameParam}-IGW
+  
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref "InternetGateway"
+  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  !Ref VPC
+      Tags:
+      - Key: "Name"
+        Value: !Join 
+          - ''
+          - - !Ref "VPCName"
+            - "-Public-Route-Table-"
+            - !Sub "${EnvNameParam}"
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn: "GatewayToInternet"
+    Properties:
+      RouteTableId: !Ref "PublicRouteTable"
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId:  !Ref "InternetGateway"
+  
+  PublicSubnetRouteTableAssociation0:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: "PublicSubnet0"
+      RouteTableId:
+        Ref: "PublicRouteTable"
+  PublicSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: "PublicSubnet1"
+      RouteTableId:
+        Ref: "PublicRouteTable"
+  ElasticIP:
+      Type: "AWS::EC2::EIP"
+      Properties:
+        Domain: "vpc"
+  
+  NATGateway:
+    DependsOn: "ElasticIP"
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - "ElasticIP"
+          - "AllocationId"
+      SubnetId:
+        Ref: "PublicSubnet0"
+      Tags:
+        - Key: "Name"
+          Value: !Join 
+          - ''
+          - - !Sub "${EnvNameParam}"
+            - "-NATGATEWAY-"
+            
+          
+  
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  !Ref VPC
+      Tags:
+      - Key: "Name"
+        Value: !Join 
+          - ''
+          - - !Ref "VPCName"
+            - "-Private-Route-Table-"
+            - !Sub "${EnvNameParam}"
+  PrivateRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn: "NATGateway"
+    Properties:
+      RouteTableId: !Ref "PrivateRouteTable"
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref "NATGateway"
+
+  PrivateSubnetRouteTableAssociation0:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnet0"
+      RouteTableId:
+        Ref: "PrivateRouteTable"
+  
+  PrivateSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnet1"
+      RouteTableId:
+        Ref: "PrivateRouteTable"
+  RDSserverSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties: 
+        GroupDescription: "Allow Http Request on port 3306"
+        GroupName: !Sub ${AWS::StackName}-${EnvNameParam}-RDS-SG
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 3306
+            ToPort: 3306
+            SourceSecurityGroupId: !Ref WebserverSecurityGroup
+        Tags: 
+          -
+            Key: "Name"
+            Value: !Sub "${AWS::Region}-${EnvNameParam}-RDS-SG"
+        VpcId: !Ref VPC
+  WebserverSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: "Allow Http Request on port 80"
+      GroupName: !Sub ${AWS::StackName}-${EnvNameParam}-Web-SG
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags: 
+        -
+          Key: "Name"
+          Value: !Sub ${AWS::Region}-${EnvNameParam}-Web-SG 
+      VpcId: !Ref VPC
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: "Allow Http Request on port 80"
+      GroupName: !Sub ${AWS::StackName}-${EnvNameParam}-ALB-SG
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          
+      Tags: 
+        -
+          Key: "Name"
+          Value: !Sub ${AWS::Region}-${EnvNameParam}-ALB-SG
+      VpcId: !Ref VPC
+          
+  
+  
+
+
+##############################################################################################################################################################
+
+Outputs:
+  VPCId:
+    Description: "VPCId of VPC"
+    Value:
+      Ref: "VPC"
+    Export:
+      Name: !Sub "${AWS::Region}-${EnvNameParam}-VPC"
+
+  PublicSubnet0:
+    Description: "SubnetId of public subnet 0"
+    Value:
+      Ref: "PublicSubnet0"
+    Export:
+      Name: !Sub "${AWS::Region}-${EnvNameParam}-PublicSubnet0"
+
+  PublicSubnet1:
+    Description: "SubnetId of public subnet 1"
+    Value:
+      Ref: "PublicSubnet1"
+    Export:
+      Name: !Sub "${AWS::Region}-${EnvNameParam}-PublicSubnet1"
+
+  PrivateSubnet0:
+    Description: "SubnetId of private subnet 0"
+    Value:
+      Ref: "PrivateSubnet0"
+    Export:
+      Name: !Sub "${AWS::Region}-${EnvNameParam}-PrivateSubnet0"
+
+  PrivateSubnet1:
+    Description: "SubnetId of private subnet 1"
+    Value:
+      Ref: "PrivateSubnet1"
+    Export:
+      Name: !Sub "${AWS::Region}-${EnvNameParam}-PrivateSubnet1"
+  ALBSecurityGroupId:
+    Description: "Id of Application Loadbalancer SecurityGroup"
+    Value:
+      Ref: LoadBalancerSecurityGroup
+    Export:
+      Name: !Sub ${AWS::Region}-${EnvNameParam}-ALB-SG
+  WebSecurityGroupId:
+    Description: "Id of WebServer SecurityGroup"
+    Value:
+      Ref: WebserverSecurityGroup
+    Export:
+      Name: !Sub ${AWS::Region}-${EnvNameParam}-Web-SG
+  RDSSecurityGroupId:
+    Description: "Id of RDS SecurityGroup"
+    Value:
+      Ref: RDSserverSecurityGroup
+    Export:
+      Name: !Sub ${AWS::Region}-${EnvNameParam}-RDS-SG
+

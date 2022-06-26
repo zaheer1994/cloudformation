@@ -1,0 +1,258 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvNameParam:
+    Description: Example 'dev' or 'test' switch, determines which settings are passed to userdata.
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  VPCName:
+    Description: The name of the VPC being created.
+    Type: String
+    Default: "Assignment3 VPC"
+  VPCCIDR:
+    Description: The VPC CIDR
+    Type: String
+  PublicSubnet00:
+    Description: The PublicSubnet0 CIDR
+    Type: String
+  PublicSubnet11:
+    Description: The PublicSubnet1 CIDR
+    Type: String
+  PrivateSubnet00:
+    Description: The PrivateSubnet0 CIDR
+    Type: String
+  PrivateSubnet11:
+    Description: The PrivateSubnet1 CIDR
+    Type: String
+  DBInstanceClasses:
+    Description: Database Instance Classess
+    Type: String
+    Default: db.t2.micro
+    AllowedValues:
+      - db.t1.micro
+      - db.m1.small
+      - db.m1.medium
+      - db.m1.large 
+      - db.m1.xlarge 
+      - db.m2.xlarge 
+      - db.m2.2xlarge 
+      - db.m2.4xlarge 
+      - db.m3.medium 
+      - db.m3.large 
+      - db.m3.xlarge 
+      - db.m3.2xlarge 
+      - db.m4.large 
+      - db.m4.xlarge 
+      - db.m4.2xlarge 
+      - db.m4.4xlarge 
+      - db.m4.10xlarge 
+      - db.r3.large 
+      - db.r3.xlarge 
+      - db.r3.2xlarge 
+      - db.r3.4xlarge 
+      - db.r3.8xlarge 
+      - db.t2.micro  
+      - db.t2.small 
+      - db.t2.medium 
+      - db.t2.large
+
+  DBName:
+    Default: testwordpress
+    Description: The database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBUser:
+    NoEcho: 'true'
+    Description: The database admin account username
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: The database admin account password
+    Type: String
+    MinLength: '1'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]+'
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBAllocatedStorage:
+    Default: '5'
+    Description: The size of the database (Gb)
+    Type: Number
+    MinValue: '5'
+    MaxValue: '1024'
+    ConstraintDescription: must be between 5 and 1024Gb.
+  DBInstanceClass:
+    Description: The database instance type
+    Type: String
+    Default: db.t2.small
+  MultiAZ:
+    Description: Multi-AZ master database
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    ConstraintDescription: must be true or false.
+  DataAllocatedStorage:
+    Description: The storage allocated to database engine.
+    Type: String
+  DatabaseEngine:
+    Description: The database engine for RDS
+    Type: String
+    AllowedValues:
+      - mariadb
+      - mysql
+      - oracle-ee
+      - oracle-se2
+      - oracle-se1
+  DataRetentionPeriod:
+    Description: The storage retentions to database engine.
+    Type: String
+    Default: 7
+  DatabaseEngineVersion:
+    Description: The database Engine Version.
+    Type: String
+    Default: 8.0.20
+  StorageTypeDatabase:
+    Description: The database Engine storage type.
+    Type: String
+    Default: gp2
+  MonitoringInvertalDatabase:
+    Description: The database Engine monitoring interval.
+    Type: String
+    Default: 60
+  MaxAllowedStorage:
+    Description: The database Engine max storage.
+    Type: String
+    Default: 50
+  HealthCheckGracePeriodPara:
+    Description: The Healthcheck Period.
+    Type: String
+    Default: 300
+  HealthCheckIntervalSecondsPara:
+    Description: The Healthcheck Interval Period.
+    Type: String
+    Default: 30
+  HealthCheckProtocolPara:
+    Description: The Healthcheck Protocol.
+    Type: String
+    AllowedValues:
+      - "HTTP"
+      - "HTTPS"
+    Default: HTTP
+  HealthCheckTimeoutSecondsPara:
+    Description: The Healthcheck Protocol.
+    Type: String
+    Default: 15
+  HealthyThresholdCountPara:
+    Description: The Healthcheck Protocol.
+    Type: String
+    Default: 5
+  UnHealthyThresholdCountPara:
+    Description: The Healthcheck Protocol.
+    Type: String
+    Default: 3
+  
+  CPUTargetValue:
+    Description: The Healthcheck Period.
+    Type: String
+    Default: 70
+  InstanceTypeValue:
+    Description: Select the Instance Type
+    Type: String
+    AllowedValues:
+      - r6g.medium	
+      - r6g.large
+      - r6g.xlarge
+      - r6g.2xlarge
+      - r6g.4xlarge	
+      - r6g.8xlarge	
+      - r6g.12xlarge	
+      - r6g.16xlarge	
+      - r6g.metal	
+      - r6gd.medium	
+      - r6gd.large	
+      - r6gd.xlarge	
+      - r6gd.2xlarge	
+      - r6gd.4xlarge	
+      - r6gd.8xlarge	
+      - r6gd.12xlarge	
+      - r6gd.16xlarge	
+      - r6gd.meta
+      - t2.micro
+    Default: t2.micro
+  InstanceImageId:
+    Description: The Image Id of the Instance
+    Type: String
+    Default: ami-002068ed284fb165b
+  TargetGroupEC2:
+    Description: Target Group for EC2 
+    Type: String
+Conditions: 
+  IsProd: 
+    !Equals [!Ref EnvNameParam, 'prod']
+Resources:
+  myStackWithParams:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://rootstack-template.s3.us-east-2.amazonaws.com/BaseNetwork.yml
+      Parameters:
+        EnvNameParam: !Ref EnvNameParam
+        VPCName: !Ref VPCName
+        VPCCIDR: !Ref VPCCIDR
+        PublicSubnet00: !Ref PublicSubnet00
+        PublicSubnet11: !Ref PublicSubnet11
+        PrivateSubnet00: !Ref PrivateSubnet00
+        PrivateSubnet11: !Ref PrivateSubnet11
+  DatabaseStackWithParams:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://rootstack-template.s3.us-east-2.amazonaws.com/Databases.yml
+      Parameters:
+        EnvNameParam: !Ref EnvNameParam
+        DBInstanceClasses: !Ref DBInstanceClasses
+        DBName: !Ref DBName
+        DBUser: !Ref DBUser
+        DBPassword: !Ref DBPassword
+        DBAllocatedStorage: !Ref DBAllocatedStorage
+        DBInstanceClass: !Ref DBInstanceClass
+        MultiAZ: !Ref MultiAZ
+        DataAllocatedStorage: !Ref DataAllocatedStorage
+        DatabaseEngine: !Ref DatabaseEngine
+        DataRetentionPeriod: !Ref DataRetentionPeriod
+        DatabaseEngineVersion: !Ref DatabaseEngineVersion
+        StorageTypeDatabase: !Ref StorageTypeDatabase
+        MonitoringInvertalDatabase: !Ref MonitoringInvertalDatabase
+        MaxAllowedStorage: !Ref MaxAllowedStorage
+        DatabaseEngine: !Ref DatabaseEngine
+        
+    DependsOn: "myStackWithParams"
+  ServerStackWithParams:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://rootstack-template.s3.us-east-2.amazonaws.com/webservers.yml
+      Parameters:
+        EnvNameParam: !Ref EnvNameParam
+        HealthCheckGracePeriodPara: !Ref HealthCheckGracePeriodPara
+        HealthCheckIntervalSecondsPara: !Ref HealthCheckIntervalSecondsPara
+        HealthCheckProtocolPara: !Ref HealthCheckProtocolPara
+        HealthCheckTimeoutSecondsPara: !Ref HealthCheckTimeoutSecondsPara
+        HealthyThresholdCountPara: !Ref HealthyThresholdCountPara
+        UnHealthyThresholdCountPara: !Ref UnHealthyThresholdCountPara
+        CPUTargetValue: !Ref CPUTargetValue
+        InstanceTypeValue: !Ref InstanceTypeValue
+        InstanceImageId: !Ref InstanceImageId
+        TargetGroupEC2: !Ref TargetGroupEC2
+    DependsOn: "DatabaseStackWithParams"
+        
+
+        

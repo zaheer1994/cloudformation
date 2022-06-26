@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvNameParam:
+    Description: Example 'dev' or 'test' switch
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  DBInstanceClasses:
+    Description: Database Instance Classess
+    Type: String
+    Default: db.t2.micro
+    AllowedValues:
+      - db.t1.micro
+      - db.m1.small
+      - db.m1.medium
+      - db.m1.large 
+      - db.m1.xlarge 
+      - db.m2.xlarge 
+      - db.m2.2xlarge 
+      - db.m2.4xlarge 
+      - db.m3.medium 
+      - db.m3.large 
+      - db.m3.xlarge 
+      - db.m3.2xlarge 
+      - db.m4.large 
+      - db.m4.xlarge 
+      - db.m4.2xlarge 
+      - db.m4.4xlarge 
+      - db.m4.10xlarge 
+      - db.r3.large 
+      - db.r3.xlarge 
+      - db.r3.2xlarge 
+      - db.r3.4xlarge 
+      - db.r3.8xlarge 
+      - db.t2.micro  
+      - db.t2.small 
+      - db.t2.medium 
+      - db.t2.large
+
+  DBName:
+    Default: testwordpress
+    Description: The database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBUser:
+    NoEcho: 'true'
+    Description: The database admin account username
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: The database admin account password
+    Type: String
+    MinLength: '1'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]+'
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBAllocatedStorage:
+    Default: '5'
+    Description: The size of the database (Gb)
+    Type: Number
+    MinValue: '5'
+    MaxValue: '1024'
+    ConstraintDescription: must be between 5 and 1024Gb.
+  DBInstanceClass:
+    Description: The database instance type
+    Type: String
+    Default: db.t2.small
+  MultiAZ:
+    Description: Multi-AZ master database
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    ConstraintDescription: must be true or false.
+  DataAllocatedStorage:
+    Description: The storage allocated to database engine.
+    Type: String
+  DatabaseEngine:
+    Description: The database engine for RDS
+    Type: String
+    AllowedValues:
+      - mariadb
+      - mysql
+      - oracle-ee
+      - oracle-se2
+      - oracle-se1
+  DataRetentionPeriod:
+    Description: The storage retentions to database engine.
+    Type: String
+    Default: 7
+  DatabaseEngineVersion:
+    Description: The database Engine Version.
+    Type: String
+    Default: 8.0.20
+  StorageTypeDatabase:
+    Description: The database Engine storage type.
+    Type: String
+    Default: gp2
+  MonitoringInvertalDatabase:
+    Description: The database Engine monitoring interval.
+    Type: String
+    Default: 60
+  MaxAllowedStorage:
+    Description: The database Engine max storage.
+    Type: String
+    Default: 50
+Conditions: 
+  IsProd: 
+    !Equals [!Ref EnvNameParam, 'prod']
+Resources:
+  WrodpressRDSDBSubnetGroup: 
+      Properties: 
+        DBSubnetGroupDescription: The database engine for wordpress 
+        SubnetIds: 
+        - !ImportValue 
+           'Fn::Sub': '${AWS::Region}-${EnvNameParam}-PrivateSubnet0'
+        - !ImportValue 
+           'Fn::Sub': '${AWS::Region}-${EnvNameParam}-PrivateSubnet1'
+        Tags: 
+          - 
+            Key: Name
+            Value: !Sub ${AWS::Region}-${EnvNameParam}-WordPressRDSGroup
+      Type: "AWS::RDS::DBSubnetGroup"
+  RDSDBInstance:
+        Type: AWS::RDS::DBInstance
+        Properties:
+            DBInstanceIdentifier: !Sub ${EnvNameParam}-aws-database-${DBName}
+            AllocatedStorage: !Ref DataAllocatedStorage
+            DBInstanceClass: !Ref DBInstanceClasses
+            Engine: !If [ IsProd,mysql, !Ref DatabaseEngine ]
+            DBName: !Sub ${DBName}
+            MasterUsername: !Ref DBUser
+            MasterUserPassword: !Ref DBPassword
+            BackupRetentionPeriod: !Ref DataRetentionPeriod
+            MultiAZ: true
+            EngineVersion: !Ref DatabaseEngineVersion
+            PubliclyAccessible: false
+            StorageType: !Ref StorageTypeDatabase
+            Port: 3306
+            MonitoringInterval: !Ref MonitoringInvertalDatabase
+            EnableIAMDatabaseAuthentication: false
+            DeletionProtection: false
+            DBSubnetGroupName: !Ref WrodpressRDSDBSubnetGroup
+            VPCSecurityGroups: 
+            - !ImportValue 
+              'Fn::Sub': '${AWS::Region}-${EnvNameParam}-RDS-SG'
+            MaxAllocatedStorage: !Ref MaxAllowedStorage
+            MonitoringRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/rds-monitoring-role"
+            Tags: 
+              - Key: Name
+                Value: !Sub ${AWS::Region}-${EnvNameParam}-${DBName}
+Outputs:
+  RDSEndPoint:
+    Description: "EndPoint of RDS"
+    Value: 
+      Fn::GetAtt: [ RDSDBInstance, Endpoint.Address ]
+    Export:
+      Name: !Sub "${AWS::Region}-${EnvNameParam}-Endpoint"
